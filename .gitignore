@@ -1,0 +1,31 @@
+# --- secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Python (backend/) ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Node / Next.js (frontend/) ---
+node_modules/
+.next/
+out/
+.turbo/
+next-env.d.ts
+
+# --- data (never commit fetched filings) ---
+backend/data/raw/
+backend/data/canonical/
+*.db
+
+# --- OS / editor ---
+.DS_Store
+.vscode/
+.idea/
