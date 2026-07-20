@@ -28,6 +28,7 @@ src = ["src", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 markers = [
     "db: requires a running Postgres; set TEST_DATABASE_URL to enable",
     "slow: downloads the embedding model; set RUN_SLOW_TESTS=1 to enable",

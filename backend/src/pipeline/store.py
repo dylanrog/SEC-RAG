@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import psycopg
 
-from .canonicalize import CanonicalFiling
+from .canonicalize import CanonicalFiling, Sentence
+from .chunk import Chunk
 from .companies import Company
 from .edgar import FilingRef
 
@@ -55,3 +56,63 @@ def store_filing(
                 for s in canonical.sentences:
                     copy.write_row((filing_id, s.sid, s.section, s.text, s.char_start, s.char_end))
     return filing_id
+
+
+def to_pgvector(vector: list[float]) -> str:
+    return "[" + ",".join(f"{x:.8f}" for x in vector) + "]"
+
+
+def load_sentences(conn: psycopg.Connection, filing_id: int) -> list[Sentence]:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT sid, section, text, char_start, char_end"
+            " FROM sentences WHERE filing_id = %s ORDER BY sid",
+            (filing_id,),
+        )
+        return [Sentence(*row) for row in cur.fetchall()]
+
+
+def filing_ids_without_chunks(
+    conn: psycopg.Connection, *, ticker: str | None = None
+) -> list[int]:
+    sql = (
+        "SELECT f.id FROM filings f JOIN companies c ON c.cik = f.cik"
+        " WHERE NOT EXISTS (SELECT 1 FROM chunks ch WHERE ch.filing_id = f.id)"
+    )
+    params: list[object] = []
+    if ticker:
+        sql += " AND c.ticker = %s"
+        params.append(ticker.upper())
+    sql += " ORDER BY f.id"
+    with conn.cursor() as cur:
+        cur.execute(sql, params)
+        return [row[0] for row in cur.fetchall()]
+
+
+def store_chunks(
+    conn: psycopg.Connection,
+    filing_id: int,
+    chunks: list[Chunk],
+    vectors: list[list[float]],
+) -> int:
+    if len(chunks) != len(vectors):
+        raise ValueError(f"{len(chunks)} chunks but {len(vectors)} vectors")
+    with conn.transaction():
+        with conn.cursor() as cur:
+            cur.executemany(
+                "INSERT INTO chunks (filing_id, section, sid_start, sid_end, text,"
+                " token_count, embedding) VALUES (%s, %s, %s, %s, %s, %s, %s::vector)",
+                [
+                    (
+                        filing_id,
+                        chunk.section,
+                        chunk.sid_start,
+                        chunk.sid_end,
+                        chunk.text,
+                        chunk.token_count,
+                        to_pgvector(vector),
+                    )
+                    for chunk, vector in zip(chunks, vectors)
+                ],
+            )
+    return len(chunks)
