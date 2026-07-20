@@ -30,7 +30,7 @@ EDGAR (submissions, filings, XBRL) ─▶ Python ingestion pipeline ─▶ Postg
                                     (answer pane + canonical filing viewer,
                                      click-to-highlight citations)
 ```
-
+XBRL in Phase 2
 ## Repo layout
 
 ```
