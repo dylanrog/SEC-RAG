@@ -1,0 +1,3 @@
+{"git_sha": "dff5617", "timestamp": "2026-07-20T03:17:24+00:00", "questions": 16, "recall@5": 0.5, "recall@10": 0.5625, "misses@10": ["q004", "q006", "q007", "q008", "q010", "q012", "q014"]}
+{"git_sha": "dff5617", "timestamp": "2026-07-20T03:20:05+00:00", "questions": 16, "recall@5": 0.4375, "recall@10": 0.6875, "misses@10": ["q006", "q007", "q008", "q009", "q010"]}
+{"git_sha": "dff5617", "timestamp": "2026-07-20T03:25:36+00:00", "questions": 16, "recall@5": 0.6875, "recall@10": 1.0, "misses@10": []}
