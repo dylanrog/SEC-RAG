@@ -66,14 +66,24 @@ def lexical_search(
     ticker: str | None = None,
     form_type: str | None = None,
 ) -> list[tuple]:
+    # websearch_to_tsquery ANDs every bare term by default, so a natural
+    # multi-word question (8+ significant terms) almost never matches any
+    # chunk in full. Rewrite its AND-tsquery into an OR-tsquery so a chunk
+    # matching most of the question's terms still surfaces, ranked by how
+    # many/how well the terms match via ts_rank_cd (design §6.1: the lexical
+    # arm must catch exact financial terms even when the rest of the
+    # question's phrasing doesn't appear verbatim in the chunk).
     where, params = _filters(ticker, form_type)
-    match = "to_tsvector('english', ch.text) @@ websearch_to_tsquery('english', %s)"
+    or_query = (
+        "to_tsquery('english', replace(websearch_to_tsquery('english', %s)::text,"
+        " ' & ', ' | '))"
+    )
+    match = f"to_tsvector('english', ch.text) @@ {or_query}"
     where = where + (" AND " if where else " WHERE ") + match
     sql = (
         _BASE
         + where
-        + " ORDER BY ts_rank_cd(to_tsvector('english', ch.text),"
-        " websearch_to_tsquery('english', %s)) DESC LIMIT %s"
+        + f" ORDER BY ts_rank_cd(to_tsvector('english', ch.text), {or_query}) DESC LIMIT %s"
     )
     with conn.cursor() as cur:
         cur.execute(sql, [*params, question, question, k])

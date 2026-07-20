@@ -83,6 +83,22 @@ def test_lexical_match_surfaces_vector_far_chunk(seeded_conn):
 
 
 @pytest.mark.db
+def test_lexical_search_matches_on_partial_term_overlap(seeded_conn):
+    from api.retrieval import lexical_search
+
+    # "reporting" appears nowhere in the seeded corpus. A naive AND-tsquery
+    # (websearch_to_tsquery's default) requires every stemmed term to be
+    # present and would match zero rows here, even though most of the
+    # question's terms hit the ALPHA chunk directly. Full natural-language
+    # questions must degrade to "most terms matched, ranked by overlap" or
+    # the lexical arm silently starves on realistic queries.
+    question = "What does the escrow covenant restrict about zebra imports for reporting purposes?"
+    results = lexical_search(seeded_conn, question, k=10)
+    assert results
+    assert results[0][1] == "TESTC-24-000001"
+
+
+@pytest.mark.db
 def test_ticker_filter_excludes_other_companies(seeded_conn):
     results = retrieve(seeded_conn, FakeEmbedder(), "revenue quarter", ticker="TSTD")
     assert results  # BETA's chunk matches
