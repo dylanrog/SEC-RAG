@@ -25,6 +25,9 @@ backend/data/raw/
 backend/data/canonical/
 *.db
 
+# --- personal learning notes (local only) ---
+docs/learning/
+
 # --- OS / editor ---
 .DS_Store
 .vscode/
