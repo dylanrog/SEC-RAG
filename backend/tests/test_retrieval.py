@@ -4,7 +4,7 @@ from datetime import date
 import psycopg
 import pytest
 
-from api.retrieval import retrieve
+from api.retrieval import lexical_search, retrieve
 from pipeline import db, store
 from pipeline.canonicalize import CanonicalFiling, Sentence
 from pipeline.chunk import Chunk
@@ -84,18 +84,37 @@ def test_lexical_match_surfaces_vector_far_chunk(seeded_conn):
 
 @pytest.mark.db
 def test_lexical_search_matches_on_partial_term_overlap(seeded_conn):
-    from api.retrieval import lexical_search
-
     # "reporting" appears nowhere in the seeded corpus. A naive AND-tsquery
-    # (websearch_to_tsquery's default) requires every stemmed term to be
-    # present and would match zero rows here, even though most of the
-    # question's terms hit the ALPHA chunk directly. Full natural-language
-    # questions must degrade to "most terms matched, ranked by overlap" or
-    # the lexical arm silently starves on realistic queries.
+    # requires every stemmed term to be present and would match zero rows
+    # here, even though most of the question's terms hit the ALPHA chunk
+    # directly. Full natural-language questions must degrade to "most terms
+    # matched, ranked by overlap" or the lexical arm silently starves on
+    # realistic queries.
     question = "What does the escrow covenant restrict about zebra imports for reporting purposes?"
     results = lexical_search(seeded_conn, question, k=10)
     assert results
     assert results[0][1] == "TESTC-24-000001"
+
+
+@pytest.mark.db
+def test_lexical_search_treats_a_leading_dash_as_punctuation_not_negation(seeded_conn):
+    # Phase 3 feeds user-typed text straight into this arm, and web-search
+    # habits leak in. Under websearch_to_tsquery this parsed as 'zebra' |
+    # !'import', and the OR'd negation matched every chunk lacking "imports"
+    # -- BETA's cloud-revenue chunk scored as a lexical hit for a question
+    # about zebras. Terms must be ORed as plain terms, never negated.
+    results = lexical_search(seeded_conn, "zebra -imports", k=10)
+    accessions = {row[1] for row in results}
+    assert "TESTD-24-000001" not in accessions
+    assert accessions == {"TESTC-24-000001", "TESTC-24-000002"}
+
+
+@pytest.mark.db
+def test_lexical_search_on_an_all_stopword_question_returns_nothing(seeded_conn):
+    # No lexemes survive stemming, so there is nothing to match. The tsquery
+    # must come out NULL rather than empty -- an empty tsquery raises a
+    # Postgres notice on every call.
+    assert lexical_search(seeded_conn, "the of and", k=10) == []
 
 
 @pytest.mark.db

@@ -8,6 +8,35 @@ from pipeline.store import to_pgvector
 
 RRF_K = 60
 
+# The lexical arm ORs the question's terms instead of ANDing them. Postgres'
+# tsquery builders AND every stemmed term, so a natural question ("What were
+# Apple's total net sales in fiscal 2024?" -- 6+ significant terms) matches a
+# chunk only if *every* term is present, and the arm silently returns nothing
+# on realistic queries. Rewriting '&' to '|' gives "any term matches, ranked
+# by how many and how well" via ts_rank_cd, which is what design §6.1 wants
+# here: catch exact financial jargon even when the rest of the question's
+# phrasing isn't in the chunk verbatim.
+#
+# plainto_tsquery, not websearch_to_tsquery: the rewrite is a string replace
+# on the tsquery's text form, so it is only total if '&' is the sole operator
+# that can appear. websearch_to_tsquery also emits '!' for a "-term" and '<->'
+# for a "quoted phrase"; an OR'd negation ('zebra' | !'import') matches nearly
+# every chunk in the corpus. Phase 3 feeds user-typed questions straight in,
+# so that input is reachable. plainto_tsquery treats punctuation as noise and
+# only ever emits '&'.
+#
+# NULLIF keeps an all-stopword question from reaching to_tsquery(''), which
+# would raise a notice; to_tsquery(NULL) is NULL and `tsvector @@ NULL`
+# selects no rows, which is the correct answer for a question with no lexemes.
+_OR_TSQUERY = (
+    "to_tsquery('english',"
+    " NULLIF(replace(plainto_tsquery('english', %s)::text, ' & ', ' | '), ''))"
+)
+
+# Must stay spelled exactly like the chunks_text_fts expression index
+# (migration 001) or the lexical arm falls back to a sequential scan.
+_TSVECTOR = "to_tsvector('english', ch.text)"
+
 _BASE = (
     "SELECT ch.id, f.accession, f.form_type, c.ticker, ch.section,"
     " ch.sid_start, ch.sid_end, ch.text"
@@ -66,24 +95,13 @@ def lexical_search(
     ticker: str | None = None,
     form_type: str | None = None,
 ) -> list[tuple]:
-    # websearch_to_tsquery ANDs every bare term by default, so a natural
-    # multi-word question (8+ significant terms) almost never matches any
-    # chunk in full. Rewrite its AND-tsquery into an OR-tsquery so a chunk
-    # matching most of the question's terms still surfaces, ranked by how
-    # many/how well the terms match via ts_rank_cd (design §6.1: the lexical
-    # arm must catch exact financial terms even when the rest of the
-    # question's phrasing doesn't appear verbatim in the chunk).
     where, params = _filters(ticker, form_type)
-    or_query = (
-        "to_tsquery('english', replace(websearch_to_tsquery('english', %s)::text,"
-        " ' & ', ' | '))"
-    )
-    match = f"to_tsvector('english', ch.text) @@ {or_query}"
+    match = f"{_TSVECTOR} @@ {_OR_TSQUERY}"
     where = where + (" AND " if where else " WHERE ") + match
     sql = (
         _BASE
         + where
-        + f" ORDER BY ts_rank_cd(to_tsvector('english', ch.text), {or_query}) DESC LIMIT %s"
+        + f" ORDER BY ts_rank_cd({_TSVECTOR}, {_OR_TSQUERY}) DESC LIMIT %s"
     )
     with conn.cursor() as cur:
         cur.execute(sql, [*params, question, question, k])
