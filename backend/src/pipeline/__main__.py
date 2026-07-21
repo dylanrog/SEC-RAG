@@ -18,12 +18,24 @@ def main(argv: list[str] | None = None) -> None:
     p_ingest.add_argument("--all", action="store_true", help="ingest every curated company")
     p_ingest.add_argument("--accession", help="restrict to a single accession number")
     p_ingest.add_argument("--force", action="store_true", help="re-download and re-store")
+    p_embed = sub.add_parser("embed", help="chunk + embed filings that have no chunks yet")
+    p_embed.add_argument("--ticker", help="restrict to one curated ticker")
     args = parser.parse_args(argv)
 
     if args.cmd == "migrate":
         with db.connect() as conn:
             applied = db.migrate(conn)
         print(f"applied: {applied if applied else 'nothing to do'}")
+        return
+
+    if args.cmd == "embed":
+        from .embed import Embedder
+
+        with db.connect() as conn:
+            filings_done, chunks_stored = ingest.embed_filings(
+                conn, Embedder(), ticker=args.ticker
+            )
+        print(f"embedded {chunks_stored} chunks across {filings_done} filings")
         return
 
     if not args.all and not args.ticker:

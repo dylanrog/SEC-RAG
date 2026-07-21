@@ -25,6 +25,10 @@ backend/data/raw/
 backend/data/canonical/
 *.db
 
+# --- local-only working notes ---
+docs/learning/
+CLAUDE.md
+
 # --- OS / editor ---
 .DS_Store
 .vscode/
