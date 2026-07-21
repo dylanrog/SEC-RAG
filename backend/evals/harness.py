@@ -61,19 +61,27 @@ def run_retrieval_eval(conn, embedder, questions, *, ks=(5, 10), k_each: int = 2
         if not hit(chunks, question.accession, question.gold_sids):
             misses_at_top.append(question.id)
     n = len(questions)
-    metrics: dict = {"questions": n}
+    metrics: dict = {"questions": n, "k_each": k_each}
     for k in ks:
         metrics[f"recall@{k}"] = round(hits_at[k] / n, 4) if n else 0.0
     metrics[f"misses@{top_k}"] = misses_at_top
     return metrics
 
 
+def _git(*args: str) -> str:
+    result = subprocess.run(["git", *args], capture_output=True, text=True)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
 def append_results(path: Path, metrics: dict) -> None:
-    sha = subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True
-    ).stdout.strip()
+    # git_dirty matters as much as git_sha: an eval run against a working tree
+    # with uncommitted changes is not reproducible from its recorded sha, and
+    # a results log that can't be replayed is worse than no log. Recording the
+    # flag makes that visible in the file instead of inferrable from commit
+    # timestamps.
     record = {
-        "git_sha": sha or "unknown",
+        "git_sha": _git("rev-parse", "--short", "HEAD") or "unknown",
+        "git_dirty": bool(_git("status", "--porcelain")),
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         **metrics,
     }

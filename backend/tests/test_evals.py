@@ -47,6 +47,9 @@ def test_append_results_writes_json_line(tmp_path):
     record = json.loads(path.read_text(encoding="utf-8").strip())
     assert record["recall@10"] == 0.9
     assert "git_sha" in record and "timestamp" in record
+    # A run against uncommitted code isn't reproducible from its sha, so the
+    # log has to say so rather than leave it to be inferred later.
+    assert isinstance(record["git_dirty"], bool)
 
 
 @pytest.mark.db
