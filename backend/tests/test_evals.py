@@ -10,7 +10,9 @@ from tests.fakes import FakeEmbedder
 
 
 def chunk(accession, sid_start, sid_end):
-    return RetrievedChunk(1, accession, "10-K", "TSTC", "item1", sid_start, sid_end, "t", 1.0)
+    return RetrievedChunk(
+        1, accession, "10-K", "TSTC", "item1", sid_start, sid_end, "t", 1, 1.0
+    )
 
 
 def test_hit_requires_matching_accession_and_sid_overlap():

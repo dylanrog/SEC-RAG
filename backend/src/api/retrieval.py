@@ -39,7 +39,7 @@ _TSVECTOR = "to_tsvector('english', ch.text)"
 
 _BASE = (
     "SELECT ch.id, f.accession, f.form_type, c.ticker, ch.section,"
-    " ch.sid_start, ch.sid_end, ch.text"
+    " ch.sid_start, ch.sid_end, ch.text, ch.filing_id"
     " FROM chunks ch"
     " JOIN filings f ON f.id = ch.filing_id"
     " JOIN companies c ON c.cik = f.cik"
@@ -56,6 +56,7 @@ class RetrievedChunk:
     sid_start: int
     sid_end: int
     text: str
+    filing_id: int
     score: float
 
 
