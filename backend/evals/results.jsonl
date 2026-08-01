@@ -3,3 +3,4 @@
 {"git_sha": "dff5617", "timestamp": "2026-07-20T03:25:36+00:00", "questions": 16, "recall@5": 0.6875, "recall@10": 1.0, "misses@10": []}
 {"git_sha": "c9b59eb", "git_dirty": false, "timestamp": "2026-07-21T03:05:13+00:00", "questions": 16, "k_each": 20, "recall@5": 0.6875, "recall@10": 1.0, "misses@10": []}
 {"git_sha": "7bedf6c", "git_dirty": false, "timestamp": "2026-08-01T02:23:25+00:00", "questions": 16, "k_each": 20, "recall@5": 0.6875, "recall@10": 1.0, "misses@10": [], "answered_rate": 1.0, "citations_total": 22, "verified_rate": 1.0, "gold_sid_hit_rate": 0.8125, "unverified_answers": 0}
+{"git_sha": "b765469", "git_dirty": false, "timestamp": "2026-08-01T07:17:18+00:00", "questions": 16, "k_each": 20, "recall@5": 0.6875, "recall@10": 1.0, "misses@10": []}
