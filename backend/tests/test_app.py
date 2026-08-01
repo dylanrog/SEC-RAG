@@ -111,3 +111,20 @@ def test_companies_endpoint_lists_companies_with_filings(stubbed_client):
         "name": "Test Co E",
         "filings": 1,
     } in body
+
+
+def test_ask_preflight_allows_the_frontend_origin():
+    """The browser sends OPTIONS before a JSON POST cross-origin. Without CORS
+    the frontend cannot call /ask at all, and the failure surfaces only in a
+    browser -- never in pytest -- so it is pinned here."""
+    with TestClient(app) as client:
+        response = client.options(
+            "/ask",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
