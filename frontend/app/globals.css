@@ -22,3 +22,11 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Applied imperatively by lib/highlight.ts to spans inside injected viewer
+   HTML. Tailwind cannot reach markup React did not author, so this is a
+   plain global rule. */
+.cited-sentence {
+  background-color: #fef08a;
+  scroll-margin-top: 4rem;
+}
