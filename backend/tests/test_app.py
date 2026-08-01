@@ -78,3 +78,36 @@ def test_ask_passes_filters_through(stubbed_client):
     )
     done = next(data for name, data in parse_sse(response.text) if name == "done")
     assert done["chunks_retrieved"] == 0
+
+
+@pytest.mark.db
+def test_filings_endpoint_returns_viewer_html_and_metadata(stubbed_client):
+    response = stubbed_client.get(f"/filings/{ACCESSION}")
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {
+        "accession",
+        "viewer_html",
+        "ticker",
+        "form_type",
+        "filing_date",
+        "period_end",
+    }
+    assert 'data-sid="0"' in body["viewer_html"]
+    assert body["ticker"] == "TSTE"
+
+
+@pytest.mark.db
+def test_filings_endpoint_404s_for_an_unknown_accession(stubbed_client):
+    assert stubbed_client.get("/filings/0000000000-00-000000").status_code == 404
+
+
+@pytest.mark.db
+def test_companies_endpoint_lists_companies_with_filings(stubbed_client):
+    body = stubbed_client.get("/companies").json()
+    assert {
+        "cik": 999999005,
+        "ticker": "TSTE",
+        "name": "Test Co E",
+        "filings": 1,
+    } in body

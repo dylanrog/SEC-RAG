@@ -4,13 +4,14 @@ import json
 from functools import lru_cache
 from typing import Iterator
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from pipeline import db
 from pipeline.embed import Embedder
 
+from . import queries
 from .answer import AnswerEvent, answer_stream
 from .generate import AnthropicGenerator, Generator
 
@@ -83,3 +84,18 @@ def ask(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.get("/filings/{accession}")
+def get_filing(accession: str) -> dict:
+    with db.connect() as conn:
+        filing = queries.load_filing(conn, accession)
+    if filing is None:
+        raise HTTPException(status_code=404, detail="filing not found")
+    return filing
+
+
+@app.get("/companies")
+def get_companies() -> list[dict]:
+    with db.connect() as conn:
+        return queries.load_companies(conn)
