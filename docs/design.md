@@ -101,9 +101,14 @@ same sids. Both outputs are produced in a **single traversal** of the parsed DOM
 
 ### 4.3 Chunk
 
-Greedy grouping of consecutive sentences **within a section** up to ~600 tokens
+Greedy grouping of consecutive sentences **within a section** up to 450 tokens
 (tiktoken count). A chunk is a contiguous, disjoint sid range — no overlap, so every
 sentence belongs to exactly one chunk and citations map back unambiguously.
+
+The budget is 450, not the ~600 this section originally specified: `bge-small-en-v1.5`
+truncates at 512 of its own tokens, and tiktoken undercounts relative to the BGE
+tokenizer on financial text, so a 600-token chunk loses its tail from the vector
+index while still returning that tail as context. Do not restore 600.
 (If retrieval quality wants more context later, expand to neighboring chunks at
 query time rather than overlapping at ingestion.)
 
@@ -165,13 +170,26 @@ tiny runner script. Alembic is deliberate v2 — learn what migrations *are* fir
 
 ## 6. Query path
 
-`POST /ask` with `{question, filters?: {ticker?, form_type?, year?}}`, responding
-over SSE.
+`POST /ask` with `{question, filters?: {ticker?, form_type?}}`, responding over SSE.
+
+The `year` filter is **deferred to the §14 backlog** — `retrieval.retrieve()` takes
+no year parameter and Phase 3 did not add one. Filtering by fiscal year needs a
+decision about whether "year" means `filing_date` or `period_end`, which differ for
+every 10-K; shipping the ambiguity would be worse than not shipping the filter.
 
 ### 6.1 Retrieve (hybrid)
 
 1. Vector: pgvector cosine top-20 (query embedded with BGE prefix).
-2. Lexical: Postgres full-text top-20 (`websearch_to_tsquery`).
+2. Lexical: Postgres full-text top-20, **`plainto_tsquery` with its `&` operators
+   rewritten to `|`** — not the `websearch_to_tsquery` this section originally
+   specified. Postgres' tsquery builders AND every stemmed term, so a natural
+   question ("What were Apple's total net sales in fiscal 2024?") matches only a
+   chunk containing all six significant terms, and the lexical arm silently returns
+   nothing on realistic queries. ORing gives "any term matches, ranked by how many"
+   — which is the job here. `plainto_tsquery` specifically, because the rewrite is a
+   string replace on the tsquery's text form and is therefore only total if `&` is
+   the sole operator that can appear; `websearch_to_tsquery` also emits `!` for a
+   `-term`, and an OR'd negation matches nearly every chunk in the corpus.
 3. Fuse with Reciprocal Rank Fusion (k=60); take top 8 chunks into context.
 
 Hybrid is non-negotiable: finance is dense with exact terms
@@ -340,7 +358,8 @@ edge cases; DOM highlighting quirks).
 XBRL structured financials (exact-number answers), 8-K support, on-demand ticker
 ingestion (async jobs + progress UI), table linearization, reranker
 (cross-encoder), multi-filing comparison questions, conversation history,
-fine-tuned embeddings, agentic multi-step retrieval.
+fine-tuned embeddings, agentic multi-step retrieval, the `year` filter on
+`POST /ask` (deferred out of Phase 3 — see §6).
 
 Each of these is a clean extension because of the unit boundaries in §3 — none
 requires reworking the citation machinery.

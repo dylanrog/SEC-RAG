@@ -6,11 +6,15 @@ import pytest
 
 from api.retrieval import RetrievedChunk
 from evals import harness
+from evals.faithfulness import run_faithfulness_eval
+from evals.harness import GoldenQuestion
 from tests.fakes import FakeEmbedder
 
 
 def chunk(accession, sid_start, sid_end):
-    return RetrievedChunk(1, accession, "10-K", "TSTC", "item1", sid_start, sid_end, "t", 1.0)
+    return RetrievedChunk(
+        1, accession, "10-K", "TSTC", "item1", sid_start, sid_end, "t", 1, 1.0
+    )
 
 
 def test_hit_requires_matching_accession_and_sid_overlap():
@@ -108,3 +112,57 @@ def test_run_retrieval_eval_end_to_end():
         assert metrics["questions"] == 2
         assert metrics["recall@10"] == 0.5
         assert metrics["misses@10"] == ["q002"]
+
+
+def test_faithfulness_metrics_are_computed_from_the_event_stream(monkeypatch):
+    question = GoldenQuestion(
+        id="q001",
+        question="What were total net sales?",
+        ticker="AAPL",
+        accession="0000320193-24-000123",
+        section="item7",
+        gold_sids=[41],
+    )
+    events = [
+        ("token", {"text": "Net sales rose [1]."}),
+        (
+            "citation",
+            {
+                "marker": 1,
+                "verified": True,
+                "accession": "0000320193-24-000123",
+                "sids": [41, 42],
+                "quote": "q",
+            },
+        ),
+        (
+            "citation",
+            {"marker": 2, "verified": False, "accession": "", "sids": [], "quote": "x"},
+        ),
+        (
+            "done",
+            {
+                "chunks_retrieved": 8,
+                "citations_total": 2,
+                "citations_verified": 1,
+                "unverified_answer": False,
+            },
+        ),
+    ]
+
+    class FakeEvent:
+        def __init__(self, name, data):
+            self.name, self.data = name, data
+
+    monkeypatch.setattr(
+        "evals.faithfulness.answer_stream",
+        lambda *a, **k: (FakeEvent(n, d) for n, d in events),
+    )
+
+    metrics = run_faithfulness_eval(None, None, None, [question])
+    assert metrics["questions"] == 1
+    assert metrics["citations_total"] == 2
+    assert metrics["verified_rate"] == 0.5
+    assert metrics["gold_sid_hit_rate"] == 1.0
+    assert metrics["answered_rate"] == 1.0
+    assert metrics["unverified_answers"] == 0

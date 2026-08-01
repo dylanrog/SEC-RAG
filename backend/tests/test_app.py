@@ -1,0 +1,113 @@
+import json
+import os
+
+import pytest
+from fastapi.testclient import TestClient
+
+from api import app as app_module
+from api.app import app
+from tests.fakes import FakeEmbedder, StubGenerator
+from tests.test_answer import (  # noqa: F401  (seeded_conn is used as a fixture)
+    ACCESSION,
+    chunk_id_of,
+    response_with,
+    seeded_conn,
+)
+
+
+def parse_sse(body: str) -> list[tuple[str, dict]]:
+    events = []
+    for block in body.strip().split("\n\n"):
+        lines = dict(line.split(": ", 1) for line in block.splitlines())
+        events.append((lines["event"], json.loads(lines["data"])))
+    return events
+
+
+@pytest.fixture()
+def stubbed_client(seeded_conn, monkeypatch):  # noqa: F811
+    quote = "Total net sales were 391.0 billion dollars"
+    generator = StubGenerator(response_with(quote, chunk_id_of(seeded_conn)))
+    monkeypatch.setenv("DATABASE_URL", os.environ["TEST_DATABASE_URL"])
+    app.dependency_overrides[app_module.get_generator] = lambda: generator
+    app.dependency_overrides[app_module.get_embedder] = FakeEmbedder
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
+
+
+def test_healthz_reports_ok():
+    with TestClient(app) as client:
+        response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_ask_rejects_an_empty_question():
+    with TestClient(app) as client:
+        response = client.post("/ask", json={"question": "   "})
+    assert response.status_code == 422
+
+
+@pytest.mark.db
+def test_ask_streams_sse_events_in_order(stubbed_client):
+    response = stubbed_client.post("/ask", json={"question": "What were net sales?"})
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    names = [name for name, _ in parse_sse(response.text)]
+    assert names[0] == "token"
+    assert "citation" in names
+    assert names[-1] == "done"
+
+
+@pytest.mark.db
+def test_ask_citation_event_matches_the_design_shape(stubbed_client):
+    response = stubbed_client.post("/ask", json={"question": "What were net sales?"})
+    citation = next(
+        data for name, data in parse_sse(response.text) if name == "citation"
+    )
+    assert set(citation) == {"marker", "verified", "accession", "sids", "quote"}
+    assert citation["verified"] is True
+    assert citation["accession"] == ACCESSION
+
+
+@pytest.mark.db
+def test_ask_passes_filters_through(stubbed_client):
+    response = stubbed_client.post(
+        "/ask",
+        json={"question": "What were net sales?", "filters": {"ticker": "NOPE"}},
+    )
+    done = next(data for name, data in parse_sse(response.text) if name == "done")
+    assert done["chunks_retrieved"] == 0
+
+
+@pytest.mark.db
+def test_filings_endpoint_returns_viewer_html_and_metadata(stubbed_client):
+    response = stubbed_client.get(f"/filings/{ACCESSION}")
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {
+        "accession",
+        "viewer_html",
+        "ticker",
+        "form_type",
+        "filing_date",
+        "period_end",
+    }
+    assert 'data-sid="0"' in body["viewer_html"]
+    assert body["ticker"] == "TSTE"
+
+
+@pytest.mark.db
+def test_filings_endpoint_404s_for_an_unknown_accession(stubbed_client):
+    assert stubbed_client.get("/filings/0000000000-00-000000").status_code == 404
+
+
+@pytest.mark.db
+def test_companies_endpoint_lists_companies_with_filings(stubbed_client):
+    body = stubbed_client.get("/companies").json()
+    assert {
+        "cik": 999999005,
+        "ticker": "TSTE",
+        "name": "Test Co E",
+        "filings": 1,
+    } in body
