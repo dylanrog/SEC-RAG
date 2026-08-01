@@ -9,8 +9,6 @@ from . import harness
 
 
 def cmd_run(args) -> None:
-    if not args.retrieval_only:
-        print("note: faithfulness eval arrives in Phase 3; running retrieval only")
     questions = harness.load_golden()
     with db.connect() as conn:
         if args.debug:
@@ -24,7 +22,16 @@ def cmd_run(args) -> None:
                 print("  vector:", [(r[1], r[5], r[6]) for r in vec])
                 print("  lexical:", [(r[1], r[5], r[6]) for r in lex])
             return
-        metrics = harness.run_retrieval_eval(conn, Embedder(), questions)
+        embedder = Embedder()
+        metrics = harness.run_retrieval_eval(conn, embedder, questions)
+        if not args.retrieval_only:
+            from api.generate import AnthropicGenerator
+
+            from . import faithfulness
+
+            metrics |= faithfulness.run_faithfulness_eval(
+                conn, embedder, AnthropicGenerator(), questions
+            )
     for key, value in metrics.items():
         print(f"{key}: {value}")
     harness.append_results(harness.RESULTS_PATH, metrics)
