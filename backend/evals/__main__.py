@@ -4,6 +4,7 @@ import argparse
 
 from pipeline import db
 from pipeline.embed import Embedder
+from pipeline.env import load_env
 
 from . import harness
 
@@ -70,6 +71,7 @@ def cmd_verify(args) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(prog="evals")
     sub = parser.add_subparsers(dest="cmd", required=True)
     p_run = sub.add_parser("run", help="run the eval harness against DATABASE_URL")

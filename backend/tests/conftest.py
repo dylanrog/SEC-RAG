@@ -2,6 +2,13 @@ import os
 
 import pytest
 
+from pipeline.env import load_env
+
+# So TEST_DATABASE_URL can live in backend/.env rather than the machine's
+# environment. override=False inside load_env means an exported value still
+# wins, and CI — which has no .env — is unaffected.
+load_env()
+
 
 def pytest_collection_modifyitems(config, items):
     skip_db = (

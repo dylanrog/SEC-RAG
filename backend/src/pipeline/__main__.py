@@ -7,9 +7,11 @@ from pathlib import Path
 
 from . import companies, db, ingest
 from .edgar import EdgarClient
+from .env import load_env
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     parser = argparse.ArgumentParser(prog="pipeline")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("migrate", help="apply pending database migrations")
