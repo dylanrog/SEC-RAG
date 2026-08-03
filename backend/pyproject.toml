@@ -5,7 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "edgar-answers-backend"
 version = "0.1.0"
-requires-python = ">=3.11"
+# The deploy runtime, not a support range: this is an application with one
+# container, so local, CI, and the Phase 5 image all run 3.13. Raising the
+# floor is what makes that a constraint instead of a convention.
+requires-python = ">=3.13"
 dependencies = [
     "httpx>=0.27",
     "beautifulsoup4>=4.12",
