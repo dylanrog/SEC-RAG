@@ -9,6 +9,17 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # Without this, `docker compose up -d` returns as soon as the container
+    # starts, not when Postgres accepts connections. Because TEST_DATABASE_URL
+    # is normally set, pytest then blocks in psycopg.connect with no timeout —
+    # it looks like a hung test suite rather than a database that isn't up yet.
+    # Pair with `docker compose up -d --wait` to block until this passes.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d edgar_answers"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
 
 volumes:
   pgdata:
