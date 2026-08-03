@@ -3,12 +3,12 @@ from datetime import date
 
 import psycopg
 import pytest
+from tests.fakes import FakeEmbedder
 
 from pipeline import db, ingest, store
 from pipeline.canonicalize import CanonicalFiling, Sentence
 from pipeline.companies import Company
 from pipeline.edgar import FilingRef
-from tests.fakes import FakeEmbedder
 
 COMPANY = Company(999999002, "TSTB", "Test Co B")
 

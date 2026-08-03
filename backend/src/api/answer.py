@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator
 
 import psycopg
 
@@ -110,7 +110,7 @@ def answer_stream(
                 "unverified_answer": citations is None,
             },
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — deliberately broad, see below
         # Design §10: an LLM outage becomes an `error` event, not a 500. By the
         # time generation starts the response headers are already sent, so
         # raising here would truncate the stream with no explanation.

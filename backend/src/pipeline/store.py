@@ -22,39 +22,38 @@ def store_filing(
     *,
     replace: bool = False,
 ) -> int:
-    with conn.transaction():
-        with conn.cursor() as cur:
+    with conn.transaction(), conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO companies (cik, ticker, name) VALUES (%s, %s, %s)"
+            " ON CONFLICT (cik) DO NOTHING",
+            (company.cik, company.ticker, company.name),
+        )
+        if replace:
             cur.execute(
-                "INSERT INTO companies (cik, ticker, name) VALUES (%s, %s, %s)"
-                " ON CONFLICT (cik) DO NOTHING",
-                (company.cik, company.ticker, company.name),
+                "DELETE FROM sentences WHERE filing_id IN"
+                " (SELECT id FROM filings WHERE accession = %s)",
+                (ref.accession,),
             )
-            if replace:
-                cur.execute(
-                    "DELETE FROM sentences WHERE filing_id IN"
-                    " (SELECT id FROM filings WHERE accession = %s)",
-                    (ref.accession,),
-                )
-                cur.execute("DELETE FROM filings WHERE accession = %s", (ref.accession,))
-            cur.execute(
-                "INSERT INTO filings (cik, accession, form_type, filing_date, period_end,"
-                " viewer_html) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-                (
-                    company.cik,
-                    ref.accession,
-                    ref.form_type,
-                    ref.filing_date,
-                    ref.period_end,
-                    canonical.viewer_html,
-                ),
-            )
-            filing_id = cur.fetchone()[0]
-            with cur.copy(
-                "COPY sentences (filing_id, sid, section, text, char_start, char_end)"
-                " FROM STDIN"
-            ) as copy:
-                for s in canonical.sentences:
-                    copy.write_row((filing_id, s.sid, s.section, s.text, s.char_start, s.char_end))
+            cur.execute("DELETE FROM filings WHERE accession = %s", (ref.accession,))
+        cur.execute(
+            "INSERT INTO filings (cik, accession, form_type, filing_date, period_end,"
+            " viewer_html) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (
+                company.cik,
+                ref.accession,
+                ref.form_type,
+                ref.filing_date,
+                ref.period_end,
+                canonical.viewer_html,
+            ),
+        )
+        filing_id = cur.fetchone()[0]
+        with cur.copy(
+            "COPY sentences (filing_id, sid, section, text, char_start, char_end)"
+            " FROM STDIN"
+        ) as copy:
+            for s in canonical.sentences:
+                copy.write_row((filing_id, s.sid, s.section, s.text, s.char_start, s.char_end))
     return filing_id
 
 
@@ -97,22 +96,23 @@ def store_chunks(
 ) -> int:
     if len(chunks) != len(vectors):
         raise ValueError(f"{len(chunks)} chunks but {len(vectors)} vectors")
-    with conn.transaction():
-        with conn.cursor() as cur:
-            cur.executemany(
-                "INSERT INTO chunks (filing_id, section, sid_start, sid_end, text,"
-                " token_count, embedding) VALUES (%s, %s, %s, %s, %s, %s, %s::vector)",
-                [
-                    (
-                        filing_id,
-                        chunk.section,
-                        chunk.sid_start,
-                        chunk.sid_end,
-                        chunk.text,
-                        chunk.token_count,
-                        to_pgvector(vector),
-                    )
-                    for chunk, vector in zip(chunks, vectors)
-                ],
-            )
+    with conn.transaction(), conn.cursor() as cur:
+        cur.executemany(
+            "INSERT INTO chunks (filing_id, section, sid_start, sid_end, text,"
+            " token_count, embedding) VALUES (%s, %s, %s, %s, %s, %s, %s::vector)",
+            [
+                (
+                    filing_id,
+                    chunk.section,
+                    chunk.sid_start,
+                    chunk.sid_end,
+                    chunk.text,
+                    chunk.token_count,
+                    to_pgvector(vector),
+                )
+                # Backstops the length check above: without strict, a future
+                # refactor that drops that guard would silently truncate.
+                for chunk, vector in zip(chunks, vectors, strict=True)
+            ],
+        )
     return len(chunks)

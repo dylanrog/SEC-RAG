@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -67,7 +67,10 @@ class EdgarClient:
         lookback_days: int = 1095,
         today: date | None = None,
     ) -> list[FilingRef]:
-        cutoff = (today or date.today()) - timedelta(days=lookback_days)
+        # UTC rather than the machine's local date: the lookback window should
+        # not shift depending on where the pipeline runs. Callers pass `today`
+        # explicitly in tests.
+        cutoff = (today or datetime.now(UTC).date()) - timedelta(days=lookback_days)
         data = self._get(SUBMISSIONS_URL.format(cik=cik)).json()
         recent = data["filings"]["recent"]
         refs: list[FilingRef] = []

@@ -21,7 +21,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.5"]
+# ruff is pinned exactly: it ships new rules in minor releases and enables some
+# by default, so an unpinned range makes CI fail on code that lints clean
+# locally. Bump this deliberately, then run `ruff check .` before committing.
+dev = ["pytest>=8.0", "ruff==0.16.1"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -29,6 +32,26 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+
+# Selected explicitly rather than inheriting ruff's defaults, which changed in
+# 0.16 and silently turned this file's lint contract into "whatever ruff ships".
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "SIM",  # simplify
+    "DTZ",  # naive datetimes — filings are dated, so tz correctness matters
+    "BLE",  # blind except
+    "PLW",  # pylint warnings
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# `Depends()` in a parameter default is the FastAPI dependency-injection idiom,
+# not the mutable-default bug B008 exists to catch.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -3,6 +3,7 @@ from datetime import date
 
 import psycopg
 import pytest
+from tests.fakes import FakeEmbedder, StubGenerator
 
 from api.answer import answer_stream
 from pipeline import db, store
@@ -10,7 +11,6 @@ from pipeline.canonicalize import CanonicalFiling, Sentence
 from pipeline.chunk import Chunk
 from pipeline.companies import Company
 from pipeline.edgar import FilingRef
-from tests.fakes import FakeEmbedder, StubGenerator
 
 COMPANY = Company(999999005, "TSTE", "Test Co E")
 ACCESSION = "9999999999-24-000005"

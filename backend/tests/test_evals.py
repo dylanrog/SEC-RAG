@@ -3,12 +3,12 @@ import os
 
 import psycopg
 import pytest
-
-from api.retrieval import RetrievedChunk
 from evals import harness
 from evals.faithfulness import run_faithfulness_eval
 from evals.harness import GoldenQuestion
 from tests.fakes import FakeEmbedder
+
+from api.retrieval import RetrievedChunk
 
 
 def chunk(accession, sid_start, sid_end):

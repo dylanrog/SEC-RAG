@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -69,7 +69,9 @@ def run_retrieval_eval(conn, embedder, questions, *, ks=(5, 10), k_each: int = 2
 
 
 def _git(*args: str) -> str:
-    result = subprocess.run(["git", *args], capture_output=True, text=True)
+    # check=False is the intent: a failed git call (no repo, detached state)
+    # degrades to "" below rather than aborting an eval run.
+    result = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
@@ -82,7 +84,7 @@ def append_results(path: Path, metrics: dict) -> None:
     record = {
         "git_sha": _git("rev-parse", "--short", "HEAD") or "unknown",
         "git_dirty": bool(_git("status", "--porcelain")),
-        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
         **metrics,
     }
     with open(path, "a", encoding="utf-8") as f:

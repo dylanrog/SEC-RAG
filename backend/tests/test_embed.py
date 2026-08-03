@@ -32,6 +32,7 @@ def test_real_model_embeds_at_384_dims_with_sane_similarity():
     query = embedder.embed_query("How did revenue change in 2024?")
 
     def cosine(a, b):
-        return sum(x * y for x, y in zip(a, b))  # fastembed vectors are L2-normalized
+        # fastembed vectors are L2-normalized
+        return sum(x * y for x, y in zip(a, b, strict=True))
 
     assert cosine(query, vectors[0]) > cosine(query, vectors[1])
