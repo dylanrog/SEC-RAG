@@ -12,10 +12,15 @@ from pydantic import BaseModel, Field, field_validator
 
 from pipeline import db
 from pipeline.embed import Embedder
+from pipeline.env import load_env
 
 from . import queries
 from .answer import AnswerEvent, answer_stream
 from .generate import AnthropicGenerator, Generator
+
+# Before anything reads os.environ below. This module is the process entry
+# point under uvicorn, so loading here is the equivalent of a main().
+load_env()
 
 app = FastAPI(title="EDGAR Answers", version="0.1.0")
 

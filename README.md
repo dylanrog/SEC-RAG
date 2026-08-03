@@ -55,10 +55,11 @@ docs/
 ## Running it locally
 
 ```bash
+cp .env.example backend/.env         # then fill it in — it is gitignored
 docker compose up -d --wait          # Postgres + pgvector
 cd backend && pip install -e ".[dev]"
 python -m pipeline migrate
-python -m pipeline ingest --ticker AAPL --all   # needs EDGAR_USER_AGENT
+python -m pipeline ingest --ticker AAPL --all
 python -m uvicorn api.app:app --port 8000
 
 cd ../frontend && npm install
@@ -66,7 +67,14 @@ cp .env.local.example .env.local
 npm run dev                          # http://localhost:3000
 ```
 
-Answering questions needs `ANTHROPIC_API_KEY`; ingestion and retrieval do not.
+Backend entry points read `backend/.env` (see `src/pipeline/env.py`); a real
+environment variable always wins over a value in the file. Keep
+`ANTHROPIC_API_KEY` in that file rather than exporting it — an exported key is
+visible to every process on the machine.
+
+Only answering questions costs money. Ingestion, embedding, and retrieval are
+free: embeddings run locally via `fastembed`, so you can build and test the
+whole pipeline without an Anthropic key at all.
 
 ## License
 

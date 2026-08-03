@@ -21,6 +21,9 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "anthropic>=0.40",
+    # Entry points load backend/.env so secrets stay in this project's
+    # processes instead of the machine-wide environment (see pipeline/env.py).
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
