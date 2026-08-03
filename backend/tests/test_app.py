@@ -3,9 +3,6 @@ import os
 
 import pytest
 from fastapi.testclient import TestClient
-
-from api import app as app_module
-from api.app import app
 from tests.fakes import FakeEmbedder, StubGenerator
 from tests.test_answer import (  # noqa: F401  (seeded_conn is used as a fixture)
     ACCESSION,
@@ -13,6 +10,9 @@ from tests.test_answer import (  # noqa: F401  (seeded_conn is used as a fixture
     response_with,
     seeded_conn,
 )
+
+from api import app as app_module
+from api.app import app
 
 
 def parse_sse(body: str) -> list[tuple[str, dict]]:

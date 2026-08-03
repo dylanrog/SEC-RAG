@@ -3,6 +3,7 @@ from datetime import date
 
 import psycopg
 import pytest
+from tests.fakes import FakeEmbedder
 
 from api.retrieval import lexical_search, retrieve
 from pipeline import db, store
@@ -10,7 +11,6 @@ from pipeline.canonicalize import CanonicalFiling, Sentence
 from pipeline.chunk import Chunk
 from pipeline.companies import Company
 from pipeline.edgar import FilingRef
-from tests.fakes import FakeEmbedder
 
 ALPHA = Company(999999003, "TSTC", "Test Co C")
 BETA = Company(999999004, "TSTD", "Test Co D")
