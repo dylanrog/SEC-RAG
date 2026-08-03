@@ -236,7 +236,7 @@ citation: {"marker": 1, "verified": true,
            "accession": "0000320193-24-000123",
            "sids": [1042, 1043], "quote": "…"}
 done:     {"chunks_retrieved": 8, "citations_total": 3,
-           "citations_verified": 3, "input_tokens": …, "output_tokens": …}
+           "citations_verified": 3, "unverified_answer": false}
 error:    {"message": "…"}
 ```
 

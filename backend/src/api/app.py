@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 from functools import lru_cache
 from typing import Iterator
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
@@ -16,6 +18,19 @@ from .answer import AnswerEvent, answer_stream
 from .generate import AnthropicGenerator, Generator
 
 app = FastAPI(title="EDGAR Answers", version="0.1.0")
+
+# The browser preflights a JSON POST from another origin. Phase 5 sets
+# FRONTEND_ORIGIN to the deployed domain; there is no wildcard here because a
+# wildcard plus credentials is rejected by browsers and we may want credentials
+# later.
+FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[FRONTEND_ORIGIN],
+    allow_methods=["GET", "POST"],
+    allow_headers=["content-type"],
+)
 
 
 class Filters(BaseModel):
