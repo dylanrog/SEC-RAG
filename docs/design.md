@@ -317,6 +317,11 @@ typecheck/lint job when the frontend lands.
 
 ## 11. Deployment
 
+- **Runtime:** Python **3.13** everywhere — local, CI, and the API image
+  (`python:3.13-slim`). Pinned rather than ranged because this is one deployed
+  container, not a library: `requires-python = ">=3.13"` and the CI
+  `setup-python` version must move together. Verified that the heaviest
+  dependencies (`fastembed` / `onnxruntime`) ship 3.13 wheels.
 - **Dev:** `docker-compose` pgvector Postgres; API and frontend run locally;
   ingestion CLI run by hand.
 - **Demo:** Vercel (frontend) + Fly.io or Render (API container, includes the
