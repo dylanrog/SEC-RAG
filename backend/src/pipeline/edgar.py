@@ -8,6 +8,7 @@ from pathlib import Path
 import httpx
 
 SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
+OVERFLOW_URL = "https://data.sec.gov/submissions/{name}"
 DOCUMENT_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/{doc}"
 _RETRY_STATUSES = {429, 500, 502, 503, 504}
 _MAX_ATTEMPTS = 4
@@ -72,23 +73,49 @@ class EdgarClient:
         # explicitly in tests.
         cutoff = (today or datetime.now(UTC).date()) - timedelta(days=lookback_days)
         data = self._get(SUBMISSIONS_URL.format(cik=cik)).json()
-        recent = data["filings"]["recent"]
+        refs = self._collect(data["filings"]["recent"], cik, forms, cutoff)
+
+        # `recent` holds only the newest ~1000 filings, counted across *every*
+        # form type. A filer that submits constantly -- JPM files 424B2/FWP
+        # prospectuses daily -- can have under a year of history there, so its
+        # in-window 10-K/10-Qs live in these overflow pages instead. Reading
+        # `recent` alone truncates such a company silently: no error, just
+        # fewer filings than the lookback asked for.
+        for page in data["filings"].get("files", []):
+            if date.fromisoformat(page["filingTo"]) < cutoff:
+                continue  # page ends before the window; nothing in it can match
+            block = self._get(OVERFLOW_URL.format(name=page["name"])).json()
+            refs.extend(self._collect(block, cik, forms, cutoff))
+        return refs
+
+    def _collect(
+        self,
+        block: dict[str, list],
+        cik: int,
+        forms: tuple[str, ...],
+        cutoff: date,
+    ) -> list[FilingRef]:
+        """Pull in-window filings out of one submissions column-array block.
+
+        `recent` and each overflow page share this shape -- parallel arrays
+        keyed by field name -- so both are read the same way.
+        """
         refs: list[FilingRef] = []
-        for i, form in enumerate(recent["form"]):
+        for i, form in enumerate(block["form"]):
             if form not in forms:
                 continue
-            filed = date.fromisoformat(recent["filingDate"][i])
+            filed = date.fromisoformat(block["filingDate"][i])
             if filed < cutoff:
                 continue
-            report = recent["reportDate"][i]
+            report = block["reportDate"][i]
             refs.append(
                 FilingRef(
                     cik=cik,
-                    accession=recent["accessionNumber"][i],
+                    accession=block["accessionNumber"][i],
                     form_type=form,
                     filing_date=filed,
                     period_end=date.fromisoformat(report) if report else None,
-                    primary_document=recent["primaryDocument"][i],
+                    primary_document=block["primaryDocument"][i],
                 )
             )
         return refs
