@@ -49,22 +49,47 @@ def hit(chunks: list[RetrievedChunk], accession: str, gold_sids: list[int]) -> b
     )
 
 
-def run_retrieval_eval(conn, embedder, questions, *, ks=(5, 10), k_each: int = 20) -> dict:
+def _score(conn, embedder, questions, *, ks, k_each: int, scoped: bool) -> dict:
+    """Recall over one retrieval arm; `scoped` applies each question's ticker."""
     top_k = max(ks)
     hits_at = {k: 0 for k in ks}
     misses_at_top: list[str] = []
     for question in questions:
-        chunks = retrieve(conn, embedder, question.question, k_each=k_each, k_final=top_k)
+        chunks = retrieve(
+            conn,
+            embedder,
+            question.question,
+            k_each=k_each,
+            k_final=top_k,
+            **({"ticker": question.ticker} if scoped else {}),
+        )
         for k in ks:
             if hit(chunks[:k], question.accession, question.gold_sids):
                 hits_at[k] += 1
         if not hit(chunks, question.accession, question.gold_sids):
             misses_at_top.append(question.id)
     n = len(questions)
-    metrics: dict = {"questions": n, "k_each": k_each}
-    for k in ks:
-        metrics[f"recall@{k}"] = round(hits_at[k] / n, 4) if n else 0.0
-    metrics[f"misses@{top_k}"] = misses_at_top
+    scores: dict = {f"recall@{k}": round(hits_at[k] / n, 4) if n else 0.0 for k in ks}
+    scores[f"misses@{top_k}"] = misses_at_top
+    return scores
+
+
+def run_retrieval_eval(conn, embedder, questions, *, ks=(5, 10), k_each: int = 20) -> dict:
+    """Score retrieval twice: scoped to each question's ticker, and unscoped.
+
+    The scoped arm measures the retriever itself, and is what the unprefixed
+    keys have always meant -- on the single-company corpus these numbers were
+    first taken against, the two arms were identical by construction. The
+    unfiltered arm measures what a user gets when they leave the ticker filter
+    empty on /ask, where every other filer's boilerplate competes for the same
+    ten slots. Reporting only one of them hides a real behavior: the golden
+    set requires a ticker, so scoping is legitimate, but most gold sentences
+    are generic enough that unscoped retrieval loses them.
+    """
+    metrics: dict = {"questions": len(questions), "k_each": k_each}
+    metrics |= _score(conn, embedder, questions, ks=ks, k_each=k_each, scoped=True)
+    unfiltered = _score(conn, embedder, questions, ks=ks, k_each=k_each, scoped=False)
+    metrics |= {f"unfiltered_{key}": value for key, value in unfiltered.items()}
     return metrics
 
 
