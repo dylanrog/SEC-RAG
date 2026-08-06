@@ -39,6 +39,50 @@ def test_list_filings_filters_forms_and_lookback(tmp_path):
     assert ten_k.cik == 320193
 
 
+def paginated_handler(requested):
+    """Serves the JPM-shaped fixture set, recording every URL fetched."""
+
+    def handler(request):
+        url = str(request.url)
+        requested.append(url)
+        name = url.rsplit("/", 1)[-1]
+        if name == "CIK0000019617.json":
+            name = "submissions_paginated.json"
+        return httpx.Response(200, json=json.loads((FIXTURES / name).read_text(encoding="utf-8")))
+
+    return handler
+
+
+def test_list_filings_follows_submissions_pagination(tmp_path):
+    # EDGAR caps filings.recent at ~1000 entries across *all* form types, so a
+    # filer like JPM (constant 424B2/FWP prospectuses) has in-window 10-K/10-Qs
+    # only in the files[] overflow pages. Reading `recent` alone silently
+    # truncates history -- no error, just fewer filings.
+    client = make_client(paginated_handler([]), tmp_path)
+    refs = client.list_filings(19617, today=date(2026, 5, 2))
+    assert [r.accession for r in refs] == [
+        "0001628280-26-029344",  # from recent
+        "0001628280-26-008131",  # from overflow page 001
+        "0000019617-25-000615",  # from overflow page 001
+    ]
+    overflow = refs[1]
+    assert overflow.form_type == "10-K"
+    assert overflow.filing_date == date(2026, 2, 13)
+    assert overflow.period_end == date(2025, 12, 31)
+    assert overflow.primary_document == "jpm-20251231.htm"
+    assert overflow.cik == 19617
+
+
+def test_list_filings_skips_overflow_pages_older_than_lookback(tmp_path):
+    # Page 002 ends 2023-01-15, before the cutoff -- fetching it would cost a
+    # request per page for no filings. JPM has 69 such pages.
+    requested = []
+    client = make_client(paginated_handler(requested), tmp_path)
+    client.list_filings(19617, today=date(2026, 5, 2))
+    assert not any("submissions-002" in url for url in requested)
+    assert any("submissions-001" in url for url in requested)
+
+
 REF = FilingRef(
     cik=320193,
     accession="0000320193-24-000123",

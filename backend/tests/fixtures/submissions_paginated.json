@@ -1,0 +1,27 @@
+{
+  "cik": "19617",
+  "_comment": "A high-volume filer (JPM shape). EDGAR caps filings.recent at ~1000 entries across ALL form types, so a bank issuing constant 424B2/FWP prospectuses pushes in-window 10-K/10-Qs into the files[] overflow pages. Page 001 overlaps the 3-year lookback; page 002 is entirely older than it.",
+  "filings": {
+    "recent": {
+      "accessionNumber": ["0001628280-26-029344", "0000019617-25-000900"],
+      "form": ["10-Q", "424B2"],
+      "filingDate": ["2026-05-01", "2025-08-06"],
+      "reportDate": ["2026-03-31", ""],
+      "primaryDocument": ["jpm-20260331.htm", "prospectus.htm"]
+    },
+    "files": [
+      {
+        "name": "CIK0000019617-submissions-001.json",
+        "filingCount": 2093,
+        "filingFrom": "2023-06-01",
+        "filingTo": "2025-08-05"
+      },
+      {
+        "name": "CIK0000019617-submissions-002.json",
+        "filingCount": 2019,
+        "filingFrom": "1994-01-20",
+        "filingTo": "2023-01-15"
+      }
+    ]
+  }
+}
