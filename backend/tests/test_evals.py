@@ -56,6 +56,52 @@ def test_append_results_writes_json_line(tmp_path):
     assert isinstance(record["git_dirty"], bool)
 
 
+GOLDEN = GoldenQuestion(
+    id="q001",
+    question="Did Apple's management conclude its disclosure controls were effective?",
+    ticker="AAPL",
+    accession="ACC-1",
+    section="item9a",
+    gold_sids=[5],
+)
+
+
+def _two_arm_retrieve(calls):
+    """Gold chunk survives only under the ticker filter.
+
+    That is the real behavior of q004/q005/q008/q014 once nine other filers
+    are in the index: their gold sentences are generic accounting boilerplate,
+    so near-identical text from other companies crowds Apple's out of the top
+    10 unless retrieval is scoped to the ticker the golden entry names.
+    """
+
+    def fake_retrieve(conn, embedder, question, *, k_each, k_final, ticker=None):
+        calls.append(ticker)
+        return [chunk("ACC-1" if ticker else "OTHER-1", 0, 10)]
+
+    return fake_retrieve
+
+
+def test_run_retrieval_eval_scopes_retrieval_to_the_golden_ticker(monkeypatch):
+    calls = []
+    monkeypatch.setattr("evals.harness.retrieve", _two_arm_retrieve(calls))
+    metrics = harness.run_retrieval_eval(None, None, [GOLDEN])
+    assert "AAPL" in calls
+    assert metrics["recall@10"] == 1.0
+    assert metrics["misses@10"] == []
+
+
+def test_run_retrieval_eval_also_reports_the_unfiltered_arm(monkeypatch):
+    # Unfiltered is what a user gets when they don't pick a ticker on /ask, so
+    # dropping it would hide a real product behavior rather than fix it.
+    calls = []
+    monkeypatch.setattr("evals.harness.retrieve", _two_arm_retrieve(calls))
+    metrics = harness.run_retrieval_eval(None, None, [GOLDEN])
+    assert None in calls
+    assert metrics["unfiltered_recall@10"] == 0.0
+    assert metrics["unfiltered_misses@10"] == ["q001"]
+
+
 @pytest.mark.db
 def test_run_retrieval_eval_end_to_end():
     from datetime import date
