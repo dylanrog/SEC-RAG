@@ -29,10 +29,13 @@ test("citations from one filing collapse into a single group", () => {
 });
 
 test("groups are ordered by the first marker that appears in each", () => {
+  // Insertion order is deliberately NOT marker order: AAPL's marker 2 is
+  // inserted before MSFT's marker 1. An implementation that iterated the
+  // Map directly instead of sorting would return ["AAPL-1", "MSFT-1"].
   const groups = groupSources(
     map(
-      citation(1, { accession: "MSFT-1", ticker: "MSFT" }),
       citation(2, { accession: "AAPL-1" }),
+      citation(1, { accession: "MSFT-1", ticker: "MSFT" }),
       citation(3, { accession: "MSFT-1", ticker: "MSFT" }),
     ),
   );
