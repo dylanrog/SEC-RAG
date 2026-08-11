@@ -221,7 +221,7 @@ Keeping this inside the existing traversal matters: design.md §4.2 forbids a se
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run from `backend/`: `pytest tests/test_canonicalize_styles.py -v`
-Expected: PASS, 12 tests.
+Expected: PASS, 13 tests (8 parametrized cases plus 5 others).
 
 - [ ] **Step 6: Run the full suite and lint**
 
@@ -1081,19 +1081,24 @@ git commit -m "feat: add tab state with LRU eviction at three filings"
 
 ---
 
-### Task 7: Multi-pane filing viewer and tab strip
+### Task 7: Tab strip, multi-pane viewer, sources panel, and page wiring
 
 **Files:**
 - Create: `frontend/components/filing-tabs.tsx`
+- Create: `frontend/components/sources-panel.tsx`
 - Modify: `frontend/components/filing-viewer.tsx` (full rewrite)
+- Modify: `frontend/app/ask/page.tsx` (full rewrite)
 
 **Interfaces:**
-- Consumes: `TabState`, `closeTab` from Task 6; existing `fetchFiling`, `applyHighlight`, `Filing`.
+- Consumes: `groupSources`/`SourceGroup` (Task 5); `TabState`/`openTab`/`closeTab`/`initialTabState` (Task 6); existing `fetchFiling`, `applyHighlight`, `Filing`.
 - Produces:
   - `<FilingTabs tabs={TabState} labels={Record<string, string>} onActivate={(a: string) => void} onClose={(a: string) => void} />`
   - `<FilingViewer tabs={TabState} sids={Record<string, number[]>} />`
+  - `<SourcesPanel groups={SourceGroup[]} onSelect={(c: Citation) => void} />`
 
 Every open filing stays mounted; inactive panes are hidden with `display:none` rather than unmounted. That is what preserves per-tab scroll position, which is the entire reason for tabs.
+
+**This is one task and not two on purpose.** `FilingViewer`'s props change, and `app/ask/page.tsx` is its only caller. Splitting them would land a commit that does not compile — and `playwright.config.ts` runs `npm run build` before the e2e suite, so that commit could not run its own tests.
 
 - [ ] **Step 1: Write the tab strip**
 
@@ -1258,36 +1263,7 @@ export function FilingViewer({
 }
 ```
 
-- [ ] **Step 3: Typecheck and lint**
-
-Run from `frontend/`: `npm run lint`
-Expected: green. `page.tsx` still passes the old props and will fail to typecheck — that is fixed in Task 8, so a type error confined to `app/ask/page.tsx` is expected at this step.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add frontend/components/filing-tabs.tsx frontend/components/filing-viewer.tsx
-git commit -m "feat: render every open filing as a tab pane
-
-Open panes stay mounted and hidden rather than unmounting, so each tab
-keeps its scroll position and switching does not re-fetch ~800 KB of HTML.
-Highlighting is gated on the pane being active: scrollIntoView does
-nothing inside a display:none subtree."
-```
-
----
-
-### Task 8: Sources panel and page wiring
-
-**Files:**
-- Create: `frontend/components/sources-panel.tsx`
-- Modify: `frontend/app/ask/page.tsx`
-
-**Interfaces:**
-- Consumes: `groupSources`/`SourceGroup` (Task 5), `TabState`/`openTab`/`closeTab`/`initialTabState` (Task 6), `FilingTabs`/`FilingViewer` (Task 7).
-- Produces: `<SourcesPanel groups={SourceGroup[]} onSelect={(c: Citation) => void} />`
-
-- [ ] **Step 1: Write the sources panel**
+- [ ] **Step 3: Write the sources panel**
 
 Create `frontend/components/sources-panel.tsx`:
 
@@ -1382,7 +1358,7 @@ export function SourcesPanel({
 }
 ```
 
-- [ ] **Step 2: Rewrite the page**
+- [ ] **Step 4: Rewrite the page**
 
 Replace `frontend/app/ask/page.tsx` entirely:
 
@@ -1475,29 +1451,32 @@ export default function AskPage() {
 }
 ```
 
-- [ ] **Step 3: Run the full frontend suite and lint**
+- [ ] **Step 5: Run the full frontend suite and lint**
 
 Run from `frontend/`: `npm test` then `npm run lint`
-Expected: green, including the type error from Task 7 Step 3 now resolved.
+Expected: green.
 
-- [ ] **Step 4: Run the existing e2e specs**
+- [ ] **Step 6: Run the existing e2e specs**
 
 Run from `frontend/`: `npm run test:e2e`
-Expected: both existing specs pass. The first clicks an inline `[1]` chip, which now opens a tab instead of setting a single accession; the assertion is on `data-sid` classes and is unaffected. The e2e stubs send citations without `ticker`/`form_type`/`filing_date`, so those render as blanks in the tab label — harmless, and Task 10 adds a spec with the full payload.
+Expected: both existing specs pass. This also proves the tree builds — the Playwright webServer runs `npm run build`, which typechecks. The first spec clicks an inline `[1]` chip, which now opens a tab instead of setting a single accession; its assertion is on `data-sid` classes and is unaffected. The existing stubs send citations without `ticker`/`form_type`/`filing_date`, so those render as blanks in the tab label — harmless, and Task 9 adds a spec with the full payload.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/components/sources-panel.tsx frontend/app/ask/page.tsx
-git commit -m "feat: add the grouped sources panel and wire tabs into the ask page
+git add frontend/components/filing-tabs.tsx frontend/components/filing-viewer.tsx frontend/components/sources-panel.tsx frontend/app/ask/page.tsx
+git commit -m "feat: grouped sources panel over a tabbed filing viewer
 
-Page state moves from a single {accession, sids} to tab state plus sids
-keyed by accession, so several filings can be open at once."
+Open panes stay mounted and hidden rather than unmounting, so each tab
+keeps its scroll position and switching does not re-fetch ~800 KB of HTML.
+Highlighting is gated on the pane being active: scrollIntoView does
+nothing inside a display:none subtree. Page state moves from a single
+{accession, sids} to tab state plus sids keyed by accession."
 ```
 
 ---
 
-### Task 9: Dark utilitarian theme
+### Task 8: Dark utilitarian theme
 
 **Files:**
 - Modify: `frontend/app/globals.css`
@@ -1655,7 +1634,7 @@ shading the strip removes."
 
 ---
 
-### Task 10: End-to-end multi-source spec
+### Task 9: End-to-end multi-source spec
 
 **Files:**
 - Create: `frontend/e2e/multi-source.spec.ts`
@@ -1792,7 +1771,7 @@ distinguishes tabs from a single swapped pane."
 
 ---
 
-### Task 11: Update project documentation
+### Task 10: Update project documentation
 
 **Files:**
 - Modify: `docs/design.md`
