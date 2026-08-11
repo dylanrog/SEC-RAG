@@ -28,6 +28,7 @@ backend/data/canonical/
 # --- local-only working notes ---
 docs/learning/
 CLAUDE.md
+.superpowers/
 
 # --- OS / editor ---
 .DS_Store
