@@ -1,3 +1,5 @@
+from datetime import date
+
 from api.generate import AnswerSplitter, build_user_message, parse_citations
 from api.retrieval import RetrievedChunk
 
@@ -7,6 +9,7 @@ def chunk(chunk_id: int, text: str) -> RetrievedChunk:
         chunk_id=chunk_id,
         accession="0000320193-24-000123",
         form_type="10-K",
+        filing_date=date(2024, 11, 1),
         ticker="AAPL",
         section="item7",
         sid_start=0,

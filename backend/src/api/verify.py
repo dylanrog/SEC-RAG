@@ -25,6 +25,9 @@ class VerifiedCitation:
     verified: bool
     accession: str
     sids: list[int]
+    ticker: str = ""
+    form_type: str = ""
+    filing_date: str = ""
 
 
 def sentence_spans(sentences: list[Sentence]) -> list[tuple[int, int, int]]:
@@ -83,4 +86,7 @@ def verify_citation(
         verified=bool(sids),
         accession=chunk.accession,
         sids=sids,
+        ticker=chunk.ticker,
+        form_type=chunk.form_type,
+        filing_date=chunk.filing_date.isoformat(),
     )

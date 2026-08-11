@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import date
 
 import psycopg
 import pytest
@@ -13,7 +14,17 @@ from api.retrieval import RetrievedChunk
 
 def chunk(accession, sid_start, sid_end):
     return RetrievedChunk(
-        1, accession, "10-K", "TSTC", "item1", sid_start, sid_end, "t", 1, 1.0
+        1,
+        accession,
+        "10-K",
+        date(2024, 11, 1),
+        "TSTC",
+        "item1",
+        sid_start,
+        sid_end,
+        "t",
+        1,
+        1.0,
     )
 
 

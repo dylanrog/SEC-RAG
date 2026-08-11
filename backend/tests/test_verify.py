@@ -1,4 +1,5 @@
 import os
+from datetime import date
 
 import psycopg
 import pytest
@@ -27,6 +28,7 @@ def chunk() -> RetrievedChunk:
         chunk_id=1,
         accession="0000320193-24-000123",
         form_type="10-K",
+        filing_date=date(2024, 11, 1),
         ticker="AAPL",
         section="item7",
         sid_start=10,
@@ -106,6 +108,36 @@ def test_verify_citation_spanning_two_sentences_reports_both():
 def test_verify_citation_rejects_empty_quotes(quote):
     result = verify_citation(Citation(1, 1, quote), chunk(), SENTENCES)
     assert result.verified is False
+
+
+def test_verified_citation_carries_filing_metadata():
+    from datetime import date
+
+    from api.retrieval import RetrievedChunk
+    from api.verify import Citation, verify_citation
+    from pipeline.canonicalize import Sentence
+
+    chunk = RetrievedChunk(
+        chunk_id=1,
+        accession="0000320193-24-000123",
+        form_type="10-K",
+        filing_date=date(2024, 11, 1),
+        ticker="AAPL",
+        section="item7",
+        sid_start=0,
+        sid_end=0,
+        text="Total net sales were 391,035 million.",
+        filing_id=5,
+        score=0.5,
+    )
+    sentences = [Sentence(0, "item7", chunk.text, 0, len(chunk.text))]
+    result = verify_citation(
+        Citation(marker=1, chunk_id=1, quote="Total net sales"), chunk, sentences
+    )
+    assert result.verified is True
+    assert result.ticker == "AAPL"
+    assert result.form_type == "10-K"
+    assert result.filing_date == "2024-11-01"
 
 
 @pytest.mark.db
