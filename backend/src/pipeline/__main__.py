@@ -22,6 +22,11 @@ def main(argv: list[str] | None = None) -> None:
     p_ingest.add_argument("--force", action="store_true", help="re-download and re-store")
     p_embed = sub.add_parser("embed", help="chunk + embed filings that have no chunks yet")
     p_embed.add_argument("--ticker", help="restrict to one curated ticker")
+    p_recanon = sub.add_parser(
+        "recanonicalize",
+        help="rebuild viewer_html from cached raw HTML (no re-embed, no EDGAR traffic)",
+    )
+    p_recanon.add_argument("--ticker", help="restrict to one curated ticker")
     args = parser.parse_args(argv)
 
     if args.cmd == "migrate":
@@ -38,6 +43,16 @@ def main(argv: list[str] | None = None) -> None:
                 conn, Embedder(), ticker=args.ticker
             )
         print(f"embedded {chunks_stored} chunks across {filings_done} filings")
+        return
+
+    if args.cmd == "recanonicalize":
+        with db.connect() as conn:
+            stats = ingest.recanonicalize_filings(
+                conn, cache_dir=Path("data/raw"), ticker=args.ticker
+            )
+        print(f"updated {stats.updated} filings, {stats.missing} missing from cache")
+        if stats.mismatched:
+            print(f"SENTENCE MISMATCH, left untouched: {', '.join(stats.mismatched)}")
         return
 
     if not args.all and not args.ticker:
