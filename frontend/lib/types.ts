@@ -5,7 +5,11 @@ export type SSEEvent = { event: string; data: unknown };
 export type Citation = {
   marker: number;
   verified: boolean;
+  /** Empty when the model cited a chunk it was never shown — unattributable. */
   accession: string;
+  ticker: string;
+  form_type: string;
+  filing_date: string;
   sids: number[];
   quote: string;
 };
