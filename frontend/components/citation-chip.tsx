@@ -19,12 +19,12 @@ export function CitationChip({
   onSelect: (citation: Citation) => void;
 }) {
   if (citation === undefined) {
-    return <span className="text-slate-400">[{marker}]</span>;
+    return <span className="text-slate-600">[{marker}]</span>;
   }
   if (!citation.verified) {
     return (
       <span
-        className="mx-0.5 rounded bg-amber-100 px-1 text-xs text-amber-800"
+        className="mx-0.5 rounded bg-red-950 px-1 font-mono text-[10px] text-red-300"
         title={`Unverified: "${citation.quote}"`}
       >
         [{marker}] unverified
@@ -35,7 +35,7 @@ export function CitationChip({
     <button
       type="button"
       onClick={() => onSelect(citation)}
-      className="mx-0.5 rounded bg-blue-100 px-1 text-xs text-blue-800 hover:bg-blue-200"
+      className="mx-0.5 rounded bg-blue-900 px-1 font-mono text-[10px] text-blue-200 hover:bg-blue-800"
       title={citation.quote}
     >
       [{marker}]

@@ -22,16 +22,16 @@ export function AnswerStream({
   return (
     <div>
       {state.errorMessage && (
-        <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">
+        <p className="mb-3 rounded bg-red-950 p-2 text-sm text-red-300">
           {state.errorMessage}
         </p>
       )}
       {state.notice && (
-        <p className="mb-3 rounded bg-amber-50 p-2 text-sm text-amber-800">
+        <p className="mb-3 rounded bg-amber-950 p-2 text-sm text-amber-300">
           {state.notice}
         </p>
       )}
-      <p className="leading-7 whitespace-pre-wrap">
+      <p className="text-sm leading-7 whitespace-pre-wrap">
         {splitOnMarkers(state.prose).map((segment, index) =>
           typeof segment === "string" ? (
             <span key={index}>{segment}</span>

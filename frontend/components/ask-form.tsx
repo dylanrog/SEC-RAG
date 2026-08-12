@@ -40,7 +40,7 @@ export function AskForm({
     >
       <input
         aria-label="Question"
-        className="rounded border px-3 py-2"
+        className="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-blue-600 focus:outline-none"
         placeholder="What were Apple's total net sales in fiscal 2024?"
         value={question}
         onChange={(event) => setQuestion(event.target.value)}
@@ -48,7 +48,7 @@ export function AskForm({
       <div className="flex gap-2">
         <select
           aria-label="Company"
-          className="rounded border px-2 py-1 text-sm"
+          className="rounded border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-slate-300"
           value={ticker}
           onChange={(event) => setTicker(event.target.value)}
         >
@@ -61,7 +61,7 @@ export function AskForm({
         </select>
         <select
           aria-label="Form type"
-          className="rounded border px-2 py-1 text-sm"
+          className="rounded border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-slate-300"
           value={formType}
           onChange={(event) => setFormType(event.target.value)}
         >
@@ -72,7 +72,7 @@ export function AskForm({
         <button
           type="submit"
           disabled={disabled}
-          className="rounded bg-blue-600 px-4 py-1 text-sm text-white disabled:bg-slate-300"
+          className="rounded bg-blue-700 px-4 py-1 text-sm text-white hover:bg-blue-600 disabled:bg-slate-800 disabled:text-slate-500"
         >
           {disabled ? "Asking…" : "Ask"}
         </button>

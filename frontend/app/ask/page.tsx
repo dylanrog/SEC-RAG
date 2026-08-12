@@ -71,7 +71,7 @@ export default function AskPage() {
           onActivate={(accession) => setTabs((previous) => openTab(previous, accession))}
           onClose={(accession) => setTabs((previous) => closeTab(previous, accession))}
         />
-        <div className="min-h-0 flex-1 bg-white">
+        <div className="min-h-0 flex-1 bg-slate-950">
           <FilingViewer tabs={tabs} sids={sids} />
         </div>
       </section>
