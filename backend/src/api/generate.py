@@ -24,15 +24,14 @@ Rules:
    so plainly and stop — do not fall back on general knowledge about the company.
 2. Attach an inline marker to every factual claim: [1], [2], and so on, numbered
    from 1 in the order they first appear.
-3. After the answer, emit a fenced JSON block and nothing after it:
+3. When excerpts from more than one filing support the answer, cite each of
+   them. Do not collapse several filings into a single citation, and do not
+   answer only from whichever excerpt appeared first.
+4. After the answer, emit a fenced JSON block and nothing after it:
 
 ```json
 {"citations": [{"marker": 1, "chunk_id": 8123, "quote": "verbatim text from that chunk"}]}
 ```
-
-4. When excerpts from more than one filing support the answer, cite each of
-   them. Do not collapse several filings into a single citation, and do not
-   answer only from whichever excerpt appeared first.
 
 Every quote must be copied character-for-character from the excerpt whose
 chunk_id you cite, and must be 300 characters or fewer. Do not paraphrase,
