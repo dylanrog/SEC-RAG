@@ -30,6 +30,10 @@ Rules:
 {"citations": [{"marker": 1, "chunk_id": 8123, "quote": "verbatim text from that chunk"}]}
 ```
 
+4. When excerpts from more than one filing support the answer, cite each of
+   them. Do not collapse several filings into a single citation, and do not
+   answer only from whichever excerpt appeared first.
+
 Every quote must be copied character-for-character from the excerpt whose
 chunk_id you cite, and must be 300 characters or fewer. Do not paraphrase,
 reformat, join sentences with an ellipsis, or fix typography inside a quote —

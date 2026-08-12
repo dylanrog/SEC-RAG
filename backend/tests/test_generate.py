@@ -80,3 +80,9 @@ def test_parse_citations_skips_entries_missing_required_fields():
     )
     citations = parse_citations(raw)
     assert [c.marker for c in citations] == [2]
+
+
+def test_system_prompt_asks_for_every_supporting_filing():
+    from api.generate import SYSTEM_PROMPT
+
+    assert "more than one filing" in SYSTEM_PROMPT
