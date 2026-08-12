@@ -95,6 +95,13 @@ same sids. Both outputs are produced in a **single traversal** of the parsed DOM
 - **Tables:** remain visible in viewer HTML; **excluded** from sentence extraction in
   v1. Numeric questions are answered from narrative text (MD&A restates the headline
   figures). Table linearization is a v2 item.
+- **Inline styles:** colour-bearing declarations (`color`, `background`,
+  `background-color`) are stripped from inline `style` attributes during the
+  same traversal; layout declarations are kept, because EDGAR tables rely on
+  width, alignment and borders for their geometry. Filings arrive with colour
+  hardcoded to `#000000` on thousands of elements, which is unreadable on the
+  dark viewer. `python -m pipeline recanonicalize` backfills `viewer_html` for
+  already-ingested filings without re-chunking or re-embedding.
 - **Degradation:** if a filing's structure defeats section detection entirely, ingest
   it as one `"other"` section and log a warning. A filing in the corpus without
   sections beats a crash.
@@ -234,6 +241,8 @@ demos — the feature working is *more* convincing when the failure mode is on d
 token:    {"text": "…"}                            -- answer deltas
 citation: {"marker": 1, "verified": true,
            "accession": "0000320193-24-000123",
+           "ticker": "AAPL", "form_type": "10-K",
+           "filing_date": "2024-11-01",
            "sids": [1042, 1043], "quote": "…"}
 done:     {"chunks_retrieved": 8, "citations_total": 3,
            "citations_verified": 3, "unverified_answer": false}
@@ -251,12 +260,16 @@ error:    {"message": "…"}
 One page: `/ask`, split-pane.
 
 - **Left — answer pane:** question input, optional company/form filters, streamed
-  answer. Markers render as citation chips; verified chips are clickable, unverified
-  chips show the badge and are not.
-- **Right — filing viewer:** empty until a chip is clicked; then loads
-  `GET /filings/{accession}`, renders the stored HTML (sanitized at ingestion, so
-  `dangerouslySetInnerHTML` is acceptable — the server is the sanitizer), scrolls to
-  the first cited sid, applies a highlight class to all cited sids.
+  answer. Markers render as citation chips; verified chips are clickable,
+  unverified chips show the badge and are not. Below the answer, a **sources
+  panel** groups every citation under its filing, so an answer drawing on
+  several filings says so.
+- **Right — filing viewer:** a tab strip over up to three open filings (LRU
+  eviction beyond that). Inactive panes stay mounted and hidden so each keeps
+  its scroll position. Clicking a citation opens or activates its filing's tab
+  and highlights the cited sids. Each pane loads `GET /filings/{accession}` and
+  renders the stored HTML (sanitized at ingestion, so `dangerouslySetInnerHTML`
+  is acceptable — the server is the sanitizer).
 
 Components: `app/ask/page.tsx`, `components/answer-stream.tsx`,
 `components/citation-chip.tsx`, `components/filing-viewer.tsx`.
@@ -362,9 +375,17 @@ edge cases; DOM highlighting quirks).
 
 XBRL structured financials (exact-number answers), 8-K support, on-demand ticker
 ingestion (async jobs + progress UI), table linearization, reranker
-(cross-encoder), multi-filing comparison questions, conversation history,
-fine-tuned embeddings, agentic multi-step retrieval, the `year` filter on
-`POST /ask` (deferred out of Phase 3 — see §6).
+(cross-encoder), conversation history, fine-tuned embeddings, agentic
+multi-step retrieval, the `year` filter on `POST /ask` (deferred out of
+Phase 3 — see §6).
+
+**Query decomposition** replaces the former "multi-filing comparison
+questions" entry. The rendering half of that item is built (§7: the sources
+panel and tabbed viewer show an answer resting on several filings). The
+retrieval half is not: one embedding of "how do Apple and Microsoft describe
+supply chain risk" retrieves whichever filer's boilerplate scores highest
+rather than both, so a comparison question is still answered from one company.
+Splitting such a question into per-company retrievals is the v2 work.
 
 Each of these is a clean extension because of the unit boundaries in §3 — none
 requires reworking the citation machinery.
