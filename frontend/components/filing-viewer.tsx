@@ -4,28 +4,29 @@ import { useEffect, useRef, useState } from "react";
 
 import { fetchFiling } from "@/lib/api";
 import { applyHighlight } from "@/lib/highlight";
+import type { TabState } from "@/lib/tabs";
 import type { Filing } from "@/lib/types";
 
-export function FilingViewer({
+/**
+ * One mounted filing. Kept in the DOM while its tab is open even when
+ * inactive -- hidden with display:none rather than unmounted -- so that its
+ * scroll position survives a tab switch. Unmounting would also mean
+ * re-fetching and re-parsing ~800 KB of HTML on every switch.
+ */
+function FilingPane({
   accession,
   sids,
+  active,
 }: {
-  accession: string | null;
+  accession: string;
   sids: number[];
+  active: boolean;
 }) {
   const [filing, setFiling] = useState<Filing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch keyed on accession only, so clicking a second citation in the same
-  // filing does not re-download or re-inject ~818 KB of HTML.
-  //
-  // There is deliberately no setFiling(null)/setError(null) reset here: the
-  // parent gives this component `key={accession}`, so switching filings
-  // remounts it with fresh state. Resetting inside the effect instead would
-  // trip react-hooks/set-state-in-effect and cost an extra render pass.
   useEffect(() => {
-    if (accession === null) return;
     let cancelled = false;
     fetchFiling(accession)
       .then((next) => {
@@ -39,32 +40,63 @@ export function FilingViewer({
     };
   }, [accession]);
 
-  // Highlight keyed on sids. React leaves the injected HTML alone when the
-  // __html string is unchanged, so the classes we set imperatively survive.
+  // Highlighting scrolls the cited sentence into view, so it must not run
+  // while the pane is hidden -- display:none elements have no layout box and
+  // scrollIntoView would do nothing.
   useEffect(() => {
-    if (filing !== null && containerRef.current !== null) {
+    if (active && filing !== null && containerRef.current !== null) {
       applyHighlight(containerRef.current, sids);
     }
-  }, [filing, sids]);
-
-  if (accession === null) {
-    return (
-      <p className="p-6 text-slate-500">
-        Click a citation to open the filing here.
-      </p>
-    );
-  }
-  if (error !== null) return <p className="p-6 text-red-700">{error}</p>;
-  if (filing === null) return <p className="p-6 text-slate-500">Loading filing…</p>;
+  }, [active, filing, sids]);
 
   return (
-    <div className="p-6">
-      <h2 className="mb-4 text-sm font-semibold text-slate-600">
-        {filing.ticker} {filing.form_type} · filed {filing.filing_date}
-      </h2>
-      {/* Safe here and only here: this HTML was sanitized by the
-          canonicalizer at ingestion, so the server is the sanitizer. */}
-      <div ref={containerRef} dangerouslySetInnerHTML={{ __html: filing.viewer_html }} />
+    // data-accession gives each pane a stable handle regardless of which is
+    // active — the e2e scroll-persistence spec needs to address a *specific*
+    // pane, and a class selector would resolve to whichever is visible.
+    <div
+      data-accession={accession}
+      className={active ? "h-full overflow-y-auto p-5" : "hidden"}
+    >
+      {error !== null && <p className="text-red-400">{error}</p>}
+      {error === null && filing === null && (
+        <p className="text-slate-500">Loading filing…</p>
+      )}
+      {filing !== null && (
+        // Safe here and only here: this HTML was sanitized by the
+        // canonicalizer at ingestion, so the server is the sanitizer.
+        <div
+          ref={containerRef}
+          className="filing-html"
+          dangerouslySetInnerHTML={{ __html: filing.viewer_html }}
+        />
+      )}
     </div>
+  );
+}
+
+export function FilingViewer({
+  tabs,
+  sids,
+}: {
+  tabs: TabState;
+  sids: Record<string, number[]>;
+}) {
+  if (tabs.open.length === 0) {
+    return (
+      <p className="p-5 text-slate-500">Click a source to open the filing here.</p>
+    );
+  }
+
+  return (
+    <>
+      {tabs.open.map((accession) => (
+        <FilingPane
+          key={accession}
+          accession={accession}
+          sids={sids[accession] ?? []}
+          active={accession === tabs.active}
+        />
+      ))}
+    </>
   );
 }

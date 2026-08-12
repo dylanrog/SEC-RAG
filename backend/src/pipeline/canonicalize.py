@@ -10,6 +10,11 @@ from .sections import SectionTracker
 _STRIP_TAGS = ["script", "style", "iframe", "object", "embed", "ix:header", "ix:hidden"]
 _BLOCK_TAGS = ["p", "li", "div"]
 
+# Declarations whose *only* job is colour. 'border-bottom: 1px solid #000'
+# deliberately does not match: it carries geometry too, and dropping it would
+# lose the rule line from every financial table.
+_COLOR_PROPERTIES = ("color", "background", "background-color")
+
 
 @dataclass(frozen=True)
 class Sentence:
@@ -27,6 +32,26 @@ class CanonicalFiling:
     viewer_html: str
 
 
+def strip_color_declarations(style: str) -> str:
+    """Remove colour-bearing declarations from one inline style attribute.
+
+    EDGAR filings arrive with colour baked into thousands of inline styles
+    (one cached AMZN 10-K: 9,316 style attributes, 6,574 colour declarations,
+    nearly all '#000000'). Those render as invisible text on a dark viewer.
+    Layout properties are kept -- EDGAR tables rely on width, alignment and
+    borders for their geometry, so a blanket strip mangles them.
+    """
+    kept = []
+    for declaration in style.split(";"):
+        if not declaration.strip():
+            continue
+        prop, _, _value = declaration.partition(":")
+        if prop.strip().lower() in _COLOR_PROPERTIES:
+            continue
+        kept.append(declaration.strip())
+    return "; ".join(kept)
+
+
 def canonicalize(raw_html: str, form_type: str) -> CanonicalFiling:
     """One DOM traversal producing aligned canonical text and sid-annotated viewer HTML."""
     soup = BeautifulSoup(raw_html, "lxml")
@@ -37,6 +62,13 @@ def canonicalize(raw_html: str, form_type: str) -> CanonicalFiling:
     for el in soup.find_all(True):
         for attr in [a for a in el.attrs if a.lower().startswith("on")]:
             del el.attrs[attr]
+        style = el.attrs.get("style")
+        if style is not None:
+            cleaned = strip_color_declarations(style)
+            if cleaned:
+                el["style"] = cleaned
+            else:
+                del el.attrs["style"]
 
     segmenter = pysbd.Segmenter(language="en", clean=False, char_span=True)
     tracker = SectionTracker(form_type)

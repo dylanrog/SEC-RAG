@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #020617;
+  --foreground: #e2e8f0;
 }
 
 @theme inline {
@@ -12,21 +12,54 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* The scaffold's prefers-color-scheme block is deliberately removed. Filing
-   viewer HTML comes from EDGAR with its own inline colours that assume a light
-   background, so a dark theme renders it unreadable. Dark mode is out of scope
-   for v1 (design §14). */
+/* Dark is now viable because the canonicalizer strips colour-bearing inline
+   declarations at ingestion (pipeline/canonicalize.py strip_color_declarations),
+   so filing text inherits instead of arriving hardcoded to #000000. Filings
+   ingested before that change must be backfilled with
+   `python -m pipeline recanonicalize` or they will render invisibly here. */
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Injected filing HTML. Tailwind never sees this markup, so these are plain
+   global rules. */
+.filing-html {
+  color: #cbd5e1;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.75;
+}
+
+.filing-html table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
+/* Replaces the row shading that stripping `background` removed. */
+.filing-html tr:nth-child(even) {
+  background-color: #0f172a;
+}
+
+.filing-html td,
+.filing-html th {
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.filing-html b,
+.filing-html strong {
+  color: #f1f5f9;
 }
 
 /* Applied imperatively by lib/highlight.ts to spans inside injected viewer
-   HTML. Tailwind cannot reach markup React did not author, so this is a
-   plain global rule. */
+   HTML. */
 .cited-sentence {
-  background-color: #fef08a;
+  background-color: #78350f;
+  color: #fef3c7;
+  box-shadow: 0 0 0 3px #78350f;
   scroll-margin-top: 4rem;
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 
 from . import store
 from .canonicalize import canonicalize
@@ -52,3 +53,43 @@ def embed_filings(
         chunks_stored += store.store_chunks(conn, filing_id, chunks, vectors)
         filings_done += 1
     return filings_done, chunks_stored
+
+
+@dataclass
+class RecanonicalizeStats:
+    updated: int = 0
+    missing: int = 0
+    mismatched: list[str] = field(default_factory=list)
+
+
+def recanonicalize_filings(
+    conn,
+    *,
+    cache_dir: Path,
+    ticker: str | None = None,
+) -> RecanonicalizeStats:
+    """Rebuild viewer_html from cached raw HTML. Writes nothing else.
+
+    Sentence extraction reads block text, which an inline style attribute
+    cannot affect, so sids are invariant across this change -- meaning no
+    re-chunk and no re-embed. That invariance is *verified per filing* rather
+    than assumed: if the freshly computed sentences disagree with the stored
+    rows in any field, the filing is left untouched and reported. A silent
+    rewrite here would break every stored citation and the golden set's
+    pinned sids at once.
+    """
+    stats = RecanonicalizeStats()
+    for filing_id, cik, accession, form_type in store.filings_to_recanonicalize(
+        conn, ticker=ticker
+    ):
+        path = Path(cache_dir) / str(cik) / f"{accession}.html"
+        if not path.exists():
+            stats.missing += 1
+            continue
+        canonical = canonicalize(path.read_text(encoding="utf-8"), form_type)
+        if canonical.sentences != store.load_sentences(conn, filing_id):
+            stats.mismatched.append(accession)
+            continue
+        store.update_viewer_html(conn, filing_id, canonical.viewer_html)
+        stats.updated += 1
+    return stats

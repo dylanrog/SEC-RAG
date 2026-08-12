@@ -21,7 +21,7 @@ test("token events concatenate into prose and mark it streaming", () => {
 
 test("a citation event is stored under its marker", () => {
   const state = feed([
-    ["citation", { marker: 1, verified: true, accession: "A", sids: [7], quote: "q" }],
+    ["citation", { marker: 1, verified: true, accession: "A", ticker: "AAPL", form_type: "10-K", filing_date: "2024-11-01", sids: [7], quote: "q" }],
   ]);
   expect(state.citations.get(1)?.sids).toEqual([7]);
 });

@@ -65,9 +65,21 @@ def test_ask_citation_event_matches_the_design_shape(stubbed_client):
     citation = next(
         data for name, data in parse_sse(response.text) if name == "citation"
     )
-    assert set(citation) == {"marker", "verified", "accession", "sids", "quote"}
+    assert set(citation) == {
+        "marker",
+        "verified",
+        "accession",
+        "ticker",
+        "form_type",
+        "filing_date",
+        "sids",
+        "quote",
+    }
     assert citation["verified"] is True
     assert citation["accession"] == ACCESSION
+    assert citation["ticker"] == "TSTE"
+    assert citation["form_type"] == "10-K"
+    assert citation["filing_date"] == "2024-11-01"
 
 
 @pytest.mark.db

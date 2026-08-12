@@ -1,3 +1,5 @@
+from datetime import date
+
 from api.generate import AnswerSplitter, build_user_message, parse_citations
 from api.retrieval import RetrievedChunk
 
@@ -7,6 +9,7 @@ def chunk(chunk_id: int, text: str) -> RetrievedChunk:
         chunk_id=chunk_id,
         accession="0000320193-24-000123",
         form_type="10-K",
+        filing_date=date(2024, 11, 1),
         ticker="AAPL",
         section="item7",
         sid_start=0,
@@ -77,3 +80,23 @@ def test_parse_citations_skips_entries_missing_required_fields():
     )
     citations = parse_citations(raw)
     assert [c.marker for c in citations] == [2]
+
+
+def test_system_prompt_asks_for_every_supporting_filing():
+    from api.generate import SYSTEM_PROMPT
+
+    assert "more than one filing" in SYSTEM_PROMPT
+
+
+def test_multi_filing_rule_precedes_the_output_format_example():
+    """Placement is load-bearing, and was measured rather than assumed.
+
+    With this rule *after* the fenced JSON example, the golden set's q004
+    dropped its citation block entirely on 3 of 3 eval runs: the model
+    enumerated the excerpts inline, counted that as having cited them, and
+    stopped before the block. Moved ahead of the example -- so the output
+    format stays contiguous and last -- q004 emitted citations on 2 of 2.
+    """
+    from api.generate import FENCE, SYSTEM_PROMPT
+
+    assert SYSTEM_PROMPT.index("more than one filing") < SYSTEM_PROMPT.index(FENCE)

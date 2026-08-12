@@ -88,6 +88,31 @@ def filing_ids_without_chunks(
         return [row[0] for row in cur.fetchall()]
 
 
+def filings_to_recanonicalize(
+    conn: psycopg.Connection, *, ticker: str | None = None
+) -> list[tuple[int, int, str, str]]:
+    """(filing_id, cik, accession, form_type) for every stored filing."""
+    sql = (
+        "SELECT f.id, f.cik, f.accession, f.form_type FROM filings f"
+        " JOIN companies c ON c.cik = f.cik"
+    )
+    params: list[object] = []
+    if ticker:
+        sql += " WHERE c.ticker = %s"
+        params.append(ticker.upper())
+    sql += " ORDER BY f.id"
+    with conn.cursor() as cur:
+        cur.execute(sql, params)
+        return cur.fetchall()
+
+
+def update_viewer_html(conn: psycopg.Connection, filing_id: int, viewer_html: str) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE filings SET viewer_html = %s WHERE id = %s", (viewer_html, filing_id)
+        )
+
+
 def store_chunks(
     conn: psycopg.Connection,
     filing_id: int,

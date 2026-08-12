@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 import psycopg
 
@@ -38,7 +39,7 @@ _OR_TSQUERY = (
 _TSVECTOR = "to_tsvector('english', ch.text)"
 
 _BASE = (
-    "SELECT ch.id, f.accession, f.form_type, c.ticker, ch.section,"
+    "SELECT ch.id, f.accession, f.form_type, f.filing_date, c.ticker, ch.section,"
     " ch.sid_start, ch.sid_end, ch.text, ch.filing_id"
     " FROM chunks ch"
     " JOIN filings f ON f.id = ch.filing_id"
@@ -51,6 +52,7 @@ class RetrievedChunk:
     chunk_id: int
     accession: str
     form_type: str
+    filing_date: date
     ticker: str
     section: str
     sid_start: int
